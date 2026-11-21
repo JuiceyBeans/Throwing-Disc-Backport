@@ -38,6 +38,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
+@SuppressWarnings("NullableProblems")
 public class ThrowingDiscEntity extends ThrowableItemProjectile {
     private static final EntityDataAccessor<Boolean> ID_RETURNING = SynchedEntityData.defineId(ThrowingDiscEntity.class, EntityDataSerializers.BOOLEAN);
     private static final Set<ThrowingDiscEntity> ACTIVE_DISCS = new HashSet<>();
@@ -45,6 +46,7 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
     private UUID ownerUUID;
     private int flightTicks = 0;
     private int bounces = 0;
+    private double distanceTraveled = 0.0; // per bounce
     private final Set<UUID> hitEntities = new HashSet<>();
 
     public ThrowingDiscEntity(EntityType<? extends ThrowableItemProjectile> entityType, Level level) {
@@ -106,21 +108,20 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
         if (isReturning()) {
             this.noPhysics = true;
 
-            if (!level().isClientSide()) {
-                if (this.ownerUUID != null) {
-                    ACTIVE_DISCS.add(this);
-                }
-                Entity owner = getOwner();
+            if (!level().isClientSide() && this.ownerUUID != null) ACTIVE_DISCS.add(this);
 
-                if (this.flightTicks > 240) {
-                    recoverOrDrop(owner);
-                    discard();
-                    return;
-                }
+            Entity owner = getOwner();
 
-                if (owner instanceof Player player && owner.isAlive()) {
-                    Vec3 target = owner.getEyePosition().subtract(0.0, 0.2, 0.0);
-                    Vec3 dir = target.subtract(position());
+            if (owner instanceof Player player && owner.isAlive()) {
+                Vec3 target = owner.getEyePosition().subtract(0.0, 0.2, 0.0);
+                Vec3 dir = target.subtract(position());
+
+                if (!level().isClientSide()) {
+                    if (this.flightTicks > 240) {
+                        recoverOrDrop(owner);
+                        discard();
+                        return;
+                    }
 
                     if (dir.length() < 1.3) {
                         if (!player.getAbilities().instabuild) {
@@ -135,14 +136,15 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
                         discard();
                         return;
                     }
-
-                    Vec3 desiredVelocity = dir.normalize().scale(Math.min(1.2, 0.5 + (this.flightTicks * 0.02)));
-                    setDeltaMovement(getDeltaMovement().lerp(desiredVelocity, 0.28));
-                } else {
-                    recoverOrDrop(owner);
-                    discard();
-                    return;
                 }
+
+                Vec3 desiredVelocity = dir.normalize().scale(Math.min(1.2, 0.5 + (this.flightTicks * 0.02)));
+                setDeltaMovement(getDeltaMovement().lerp(desiredVelocity, 0.28));
+
+            } else if (!level().isClientSide()){
+                recoverOrDrop(owner);
+                discard();
+                return;
             }
 
             setPos(getX() + getDeltaMovement().x, getY() + getDeltaMovement().y, getZ() + getDeltaMovement().z);
@@ -156,10 +158,6 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
             if (this.flightTicks > 240) {
                 recoverOrDrop(getOwner());
                 discard();
-                return;
-            }
-            if (this.flightTicks >= 25) {
-                setReturning(true);
                 return;
             }
         }
@@ -189,6 +187,10 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
         } else {
             setPos(end.x, end.y, end.z);
         }
+
+        this.distanceTraveled += position().distanceTo(start);
+
+        if (!level().isClientSide() && this.distanceTraveled >= 10.0) setReturning(true);
     }
 
     private void recoverOrDrop(Entity owner) {
@@ -266,6 +268,7 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
             playSound(SoundEvents.TRIDENT_HIT_GROUND, 0.9F, 1.2F);
 
             this.bounces++;
+            this.distanceTraveled = 0.0;
             if (this.bounces >= this.getTier().getMaxBounces()) {
                 setReturning(true);
             }
@@ -301,6 +304,7 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
         super.addAdditionalSaveData(output);
         output.putInt("FlightTicks", this.flightTicks);
         output.putInt("Bounces", this.bounces);
+        output.putDouble("DistanceTraveled", this.distanceTraveled);
         output.putBoolean("Returning", isReturning());
         output.putInt("ThrownHand", this.thrownHand.ordinal());
         if (this.ownerUUID != null) {
@@ -313,6 +317,7 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
         super.readAdditionalSaveData(input);
         this.flightTicks = input.getIntOr("FlightTicks", 0);
         this.bounces = input.getIntOr("Bounces", 0);
+        this.distanceTraveled = input.getDoubleOr("DistanceTraveled", 0.0);
         setReturning(input.getBooleanOr("Returning", false));
         int handIdx = input.getIntOr("ThrownHand", 0);
         this.thrownHand = handIdx >= 0 && handIdx < InteractionHand.values().length ? InteractionHand.values()[handIdx] : InteractionHand.MAIN_HAND;

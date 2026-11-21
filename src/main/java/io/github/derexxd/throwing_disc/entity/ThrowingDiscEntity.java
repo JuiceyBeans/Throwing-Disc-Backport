@@ -1,6 +1,7 @@
 package io.github.derexxd.throwing_disc.entity;
 
 import io.github.derexxd.throwing_disc.item.ModItems;
+import io.github.derexxd.throwing_disc.item.ThrowingDiscItem;
 import io.github.derexxd.throwing_disc.item.ThrowingDiscTier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -40,7 +41,6 @@ import java.util.UUID;
 public class ThrowingDiscEntity extends ThrowableItemProjectile {
     private static final EntityDataAccessor<Boolean> ID_RETURNING = SynchedEntityData.defineId(ThrowingDiscEntity.class, EntityDataSerializers.BOOLEAN);
     private static final Set<ThrowingDiscEntity> ACTIVE_DISCS = new HashSet<>();
-    private ThrowingDiscTier tier = ThrowingDiscTier.IRON;
     private InteractionHand thrownHand = InteractionHand.MAIN_HAND;
     private UUID ownerUUID;
     private int flightTicks = 0;
@@ -52,9 +52,8 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
         this.setNoGravity(true);
     }
 
-    public ThrowingDiscEntity(Level level, LivingEntity shooter, ItemStack stack, ThrowingDiscTier tier, InteractionHand hand) {
+    public ThrowingDiscEntity(Level level, LivingEntity shooter, ItemStack stack, InteractionHand hand) {
         super(ModEntities.THROWING_DISC, shooter, level, stack.copy());
-        this.tier = tier;
         this.thrownHand = hand;
         this.ownerUUID = shooter.getUUID();
         this.setNoGravity(true);
@@ -64,7 +63,7 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
     }
 
     public ThrowingDiscTier getTier() {
-        return this.tier;
+        return this.getItem().getItem() instanceof ThrowingDiscItem disc ? disc.getTier() : ThrowingDiscTier.IRON;
     }
 
     public InteractionHand getThrownHand() {
@@ -232,7 +231,7 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
         this.hitEntities.add(target.getUUID());
         Entity owner = getOwner();
         DamageSource damageSource = damageSources().thrown(this, owner);
-        target.hurt(damageSource, this.tier.getDamage());
+        target.hurt(damageSource, this.getTier().getDamage());
         playSound(SoundEvents.TRIDENT_HIT, 1.0F, 1.0F);
         if (level() instanceof ServerLevel serverLevel) {
             serverLevel.sendParticles(ParticleTypes.CRIT, target.getX(), target.getY(0.5), target.getZ(), 12, 0.25, 0.25, 0.25, 0.15);
@@ -267,7 +266,7 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
             playSound(SoundEvents.TRIDENT_HIT_GROUND, 0.9F, 1.2F);
 
             this.bounces++;
-            if (this.bounces >= this.tier.getMaxBounces()) {
+            if (this.bounces >= this.getTier().getMaxBounces()) {
                 setReturning(true);
             }
         } else {
@@ -303,7 +302,6 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
         output.putInt("FlightTicks", this.flightTicks);
         output.putInt("Bounces", this.bounces);
         output.putBoolean("Returning", isReturning());
-        output.putString("Tier", this.tier.name());
         output.putInt("ThrownHand", this.thrownHand.ordinal());
         if (this.ownerUUID != null) {
             output.putString("OwnerUUID", this.ownerUUID.toString());
@@ -316,7 +314,6 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
         this.flightTicks = input.getIntOr("FlightTicks", 0);
         this.bounces = input.getIntOr("Bounces", 0);
         setReturning(input.getBooleanOr("Returning", false));
-        this.tier = ThrowingDiscTier.valueOf(input.getStringOr("Tier", "IRON"));
         int handIdx = input.getIntOr("ThrownHand", 0);
         this.thrownHand = handIdx >= 0 && handIdx < InteractionHand.values().length ? InteractionHand.values()[handIdx] : InteractionHand.MAIN_HAND;
         input.getString("OwnerUUID").ifPresent(uuidStr -> {

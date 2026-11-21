@@ -3,9 +3,10 @@
 	"id": "throwing_disc_backport",
 	"version": "${version}",
 	"name": "Throwing Disc Backport",
-	"description": "Backports the upcoming Throwing Disc weapon into earlier Minecraft versions with real ricochet physics.",
+	"description": "Fork of Throwing Disc Backport with changes made for GIS",
 	"authors": [
-		"DerexXD"
+		"DerexXD",
+        "JuiceyBeans"
 	],
 	"license": "CC0-1.0",
 	"icon": "assets/throwing_disc_backport/textures/item/diamond_throwing_disc.png",

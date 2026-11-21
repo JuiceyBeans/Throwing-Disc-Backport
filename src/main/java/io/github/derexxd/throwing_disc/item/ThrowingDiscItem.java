@@ -26,20 +26,24 @@ public class ThrowingDiscItem extends Item {
     @Override
     public InteractionResult use(Level level, Player player, InteractionHand hand) {
         ItemStack itemStack = player.getItemInHand(hand);
-        level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.TRIDENT_THROW, SoundSource.PLAYERS, 0.8F, 0.8F / (level.getRandom().nextFloat() * 0.4F + 0.8F));
-        player.getCooldowns().addCooldown(itemStack, 10);
+        if (!player.getCooldowns().isOnCooldown(itemStack)) {
+            level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.TRIDENT_THROW, SoundSource.PLAYERS, 0.8F, 0.8F / (level.getRandom().nextFloat() * 0.4F + 0.8F));
+            player.getCooldowns().addCooldown(itemStack, 20);
 
-        if (!level.isClientSide()) {
-            ThrowingDiscEntity disc = new ThrowingDiscEntity(level, player, itemStack, hand);
-            disc.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0F, tier.getVelocity(), 0.1F);
-            level.addFreshEntity(disc);
+            if (!level.isClientSide()) {
+                ThrowingDiscEntity disc = new ThrowingDiscEntity(level, player, itemStack, hand);
+                disc.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0F, tier.getVelocity(), 0.1F);
+                level.addFreshEntity(disc);
+            }
+
+            player.awardStat(Stats.ITEM_USED.get(this));
+            if (!player.getAbilities().instabuild) {
+                itemStack.shrink(1);
+            }
+
+            return InteractionResult.SUCCESS;
         }
 
-        player.awardStat(Stats.ITEM_USED.get(this));
-        if (!player.getAbilities().instabuild) {
-            itemStack.shrink(1);
-        }
-
-        return InteractionResult.SUCCESS;
+        return InteractionResult.PASS;
     }
 }

@@ -164,6 +164,16 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
 
         Vec3 start = position();
         Vec3 motion = getDeltaMovement();
+        double remaining = 10 - this.distanceTraveled;
+
+        if (remaining <= 1.0E-4) {
+            if (!level().isClientSide()) setReturning(true);
+            return;
+        }
+
+        if (motion.length() > remaining) {
+            motion = motion.normalize().scale(Math.max(remaining, 0.0));
+        }
         Vec3 end = start.add(motion);
 
         BlockHitResult blockHit = level().clip(new ClipContext(start, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
@@ -190,7 +200,7 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
 
         this.distanceTraveled += position().distanceTo(start);
 
-        if (!level().isClientSide() && this.distanceTraveled >= 10.0) setReturning(true);
+        if (!level().isClientSide() && this.distanceTraveled >= 10.0 - 1.0E-4) setReturning(true);
     }
 
     private void recoverOrDrop(Entity owner) {

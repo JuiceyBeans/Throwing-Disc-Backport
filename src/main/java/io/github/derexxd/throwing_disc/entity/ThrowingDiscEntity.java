@@ -249,6 +249,8 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
         BlockPos pos = hitResult.getBlockPos();
         BlockState state = level().getBlockState(pos);
 
+        super.onHitBlock(hitResult);
+
         if (state.is(Blocks.DECORATED_POT)) {
             level().destroyBlock(pos, true, this);
             Vec3 end = position().add(getDeltaMovement());

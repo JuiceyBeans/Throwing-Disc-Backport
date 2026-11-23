@@ -147,7 +147,24 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
                 return;
             }
 
-            setPos(getX() + getDeltaMovement().x, getY() + getDeltaMovement().y, getZ() + getDeltaMovement().z);
+            Vec3 start = position();
+            Vec3 motion = getDeltaMovement();
+            Vec3 end = start.add(motion);
+
+            EntityHitResult entityHit = ProjectileUtil.getEntityHitResult(
+                    level(),
+                    this,
+                    start,
+                    end,
+                    getBoundingBox().expandTowards(motion).inflate(1.0),
+                    this::canHitEntity
+            );
+
+            if (entityHit != null) {
+                onHitEntity(entityHit);
+            }
+
+            setPos(end.x, end.y, end.z);
             return;
         }
 
@@ -232,9 +249,6 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
 
     @Override
     protected void onHitEntity(EntityHitResult hitResult) {
-        if (isReturning()) {
-            return;
-        }
         Entity target = hitResult.getEntity();
         if (target == getOwner() || this.hitEntities.contains(target.getUUID())) {
             return;

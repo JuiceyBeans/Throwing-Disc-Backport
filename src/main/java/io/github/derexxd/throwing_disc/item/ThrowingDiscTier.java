@@ -2,7 +2,11 @@ package io.github.derexxd.throwing_disc.item;
 
 import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.entity.EquipmentSlotGroup;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.component.ItemAttributeModifiers;
 
 public record ThrowingDiscTier(
         float damage,
@@ -18,8 +22,14 @@ public record ThrowingDiscTier(
     public static final ThrowingDiscTier NETHERITE = new ThrowingDiscTier(6.0F, 2031, 2, 0.75F, ItemTags.NETHERITE_TOOL_MATERIALS);
     public static final ThrowingDiscTier CAPTAIN_AMERICA = new ThrowingDiscTier(8.0F, 3000, 4, 1.1F, ItemTags.NETHERITE_TOOL_MATERIALS);
 
-    public Item.Properties apply(Item.Properties properties) {
-        return properties.durability(this.durability).repairable(this.repairMaterials);
+    public Item.Properties applyProperties(Item.Properties properties) {
+        return properties
+                .durability(this.durability)
+                .repairable(this.repairMaterials)
+                .attributes(ItemAttributeModifiers.builder()
+                        .add(Attributes.ATTACK_DAMAGE, new AttributeModifier(Item.BASE_ATTACK_DAMAGE_ID, this.damage,
+                                AttributeModifier.Operation.ADD_VALUE), EquipmentSlotGroup.MAINHAND)
+                        .build());
     }
 
     public float getDamage() {

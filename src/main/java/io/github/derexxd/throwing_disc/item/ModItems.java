@@ -31,7 +31,7 @@ public class ModItems {
     public static final Item DIAMOND_THROWING_DISC = register("diamond_throwing_disc", ThrowingDiscTier.DIAMOND);
 
     public static final Item NETHERITE_THROWING_DISC = register("netherite_throwing_disc", ThrowingDiscTier.NETHERITE,
-            properties -> properties.fireResistant());
+            Item.Properties::fireResistant);
 
     public static final Item CAPTAIN_AMERICA_SHIELD = register("captain_america_shield", ThrowingDiscTier.CAPTAIN_AMERICA,
             properties -> properties.fireResistant().rarity(Rarity.EPIC));
@@ -42,7 +42,7 @@ public class ModItems {
 
     private static Item register(String name, ThrowingDiscTier tier, UnaryOperator<Item.Properties> properties) {
         ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(ThrowingDiscBackport.MODID, name));
-        Item.Properties props = properties.apply(tier.apply(new Item.Properties().setId(key)));
+        Item.Properties props = properties.apply(tier.applyProperties(new Item.Properties().setId(key)));
         Item item = new ThrowingDiscItem(tier, props);
         return Registry.register(BuiltInRegistries.ITEM, key, item);
     }

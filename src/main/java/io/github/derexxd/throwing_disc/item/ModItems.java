@@ -1,15 +1,23 @@
 package io.github.derexxd.throwing_disc.item;
 
 import io.github.derexxd.throwing_disc.ThrowingDiscBackport;
+import io.github.derexxd.throwing_disc.entity.ThrowingDiscEntity;
 import net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents;
+import net.minecraft.core.Direction;
 import net.minecraft.core.Registry;
+import net.minecraft.core.dispenser.BlockSource;
+import net.minecraft.core.dispenser.DefaultDispenseItemBehavior;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
+import net.minecraft.world.level.block.DispenserBlock;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.function.UnaryOperator;
 
@@ -47,5 +55,43 @@ public class ModItems {
             output.accept(DIAMOND_THROWING_DISC);
             output.accept(NETHERITE_THROWING_DISC);
         });
+    }
+
+    public static void registerDispenserBehaviors() {
+        DefaultDispenseItemBehavior behavior = new DefaultDispenseItemBehavior() {
+            @Override
+            protected ItemStack execute(BlockSource source, ItemStack stack) {
+                Direction facing = source.state().getValue(DispenserBlock.FACING);
+                ServerLevel level = source.level();
+                Vec3 pos = source.center().add(
+                        facing.getStepX() * 0.7,
+                        facing.getStepY() * 0.7,
+                        facing.getStepZ() * 0.7
+                );
+
+                ThrowingDiscEntity disc = new ThrowingDiscEntity(level, pos.x, pos.y, pos.z, stack.copyWithCount(1));
+                disc.setDeltaMovement(
+                        facing.getStepX() * 1.5,
+                        facing.getStepY() * 1.5,
+                        facing.getStepZ() * 1.5
+                );
+
+                level.addFreshEntity(disc);
+                stack.shrink(1);
+                return stack;
+            }
+
+            @Override
+            protected void playSound(BlockSource source) {
+                source.level().levelEvent(1000, source.pos(), 0);
+            }
+        };
+
+        DispenserBlock.registerBehavior(COPPER_THROWING_DISC, behavior);
+        DispenserBlock.registerBehavior(IRON_THROWING_DISC, behavior);
+        DispenserBlock.registerBehavior(GOLDEN_THROWING_DISC, behavior);
+        DispenserBlock.registerBehavior(DIAMOND_THROWING_DISC, behavior);
+        DispenserBlock.registerBehavior(NETHERITE_THROWING_DISC, behavior);
+        DispenserBlock.registerBehavior(CAPTAIN_AMERICA_SHIELD, behavior);
     }
 }

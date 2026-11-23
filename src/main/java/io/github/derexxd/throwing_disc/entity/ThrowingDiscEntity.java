@@ -41,6 +41,7 @@ import java.util.UUID;
 @SuppressWarnings("NullableProblems")
 public class ThrowingDiscEntity extends ThrowableItemProjectile {
     private static final EntityDataAccessor<Boolean> ID_RETURNING = SynchedEntityData.defineId(ThrowingDiscEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Boolean> ID_DISPENSED = SynchedEntityData.defineId(ThrowingDiscEntity.class, EntityDataSerializers.BOOLEAN);
     private static final Set<ThrowingDiscEntity> ACTIVE_DISCS = new HashSet<>();
     private InteractionHand thrownHand = InteractionHand.MAIN_HAND;
     private UUID ownerUUID;
@@ -52,6 +53,14 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
     public ThrowingDiscEntity(EntityType<? extends ThrowableItemProjectile> entityType, Level level) {
         super(entityType, level);
         this.setNoGravity(true);
+    }
+
+    public ThrowingDiscEntity(Level level, double x, double y, double z, ItemStack stack) {
+        super(ModEntities.THROWING_DISC, level);
+        this.setPos(x, y, z);
+        this.setItem(stack.copy());
+        this.setNoGravity(true);
+        this.entityData.set(ID_DISPENSED, true);
     }
 
     public ThrowingDiscEntity(Level level, LivingEntity shooter, ItemStack stack, InteractionHand hand) {
@@ -98,6 +107,7 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(ID_RETURNING, false);
+        builder.define(ID_DISPENSED, false);
     }
 
     @Override
@@ -169,28 +179,39 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
         }
 
         if (!level().isClientSide()) {
-            if (this.ownerUUID != null) {
-                ACTIVE_DISCS.add(this);
-            }
-            if (this.flightTicks > 240) {
-                recoverOrDrop(getOwner());
-                discard();
-                return;
+            if (this.entityData.get(ID_DISPENSED)) {
+                if (this.flightTicks >= 25) {
+                    dropAsItem();
+                    return;
+                }
+            } else {
+                if (this.ownerUUID != null) {
+                    ACTIVE_DISCS.add(this);
+                }
+                if (this.flightTicks > 240) {
+                    recoverOrDrop(getOwner());
+                    discard();
+                    return;
+                }
             }
         }
 
         Vec3 start = position();
         Vec3 motion = getDeltaMovement();
-        double remaining = 10 - this.distanceTraveled;
 
-        if (remaining <= 1.0E-4) {
-            if (!level().isClientSide()) setReturning(true);
-            return;
+        if (!this.entityData.get(ID_DISPENSED)) {
+            double remaining = 10 - this.distanceTraveled;
+
+            if (remaining <= 1.0E-4) {
+                if (!level().isClientSide()) setReturning(true);
+                return;
+            }
+
+            if (motion.length() > remaining) {
+                motion = motion.normalize().scale(Math.max(remaining, 0.0));
+            }
         }
 
-        if (motion.length() > remaining) {
-            motion = motion.normalize().scale(Math.max(remaining, 0.0));
-        }
         Vec3 end = start.add(motion);
 
         BlockHitResult blockHit = level().clip(new ClipContext(start, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
@@ -233,6 +254,24 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
         } else if (level() instanceof ServerLevel serverLevel) {
             spawnAtLocation(serverLevel, getItem());
         }
+    }
+
+    private void dropAsItem() {
+        if (!level().isClientSide()) {
+            ItemStack stack = getItem().copy();
+            if (stack.isDamageableItem()) {
+                int newDamage = stack.getDamageValue() + 1;
+                if (newDamage < stack.getMaxDamage()) {
+                    stack.setDamageValue(newDamage);
+                    spawnAtLocation((ServerLevel) level(), stack);
+                } else {
+                    playSound(SoundEvents.ITEM_BREAK.value(), 0.8F, 0.8F + level().getRandom().nextFloat() * 0.4F);
+                }
+            } else {
+                spawnAtLocation((ServerLevel) level(), stack);
+            }
+        }
+        discard();
     }
 
     @Override
@@ -296,6 +335,10 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
             this.bounces++;
             this.distanceTraveled = 0.0;
             if (this.bounces >= this.getTier().getMaxBounces()) {
+                if (this.entityData.get(ID_DISPENSED)) {
+                    dropAsItem();
+                    return;
+                }
                 setReturning(true);
             }
         } else {
@@ -332,6 +375,7 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
         output.putInt("Bounces", this.bounces);
         output.putDouble("DistanceTraveled", this.distanceTraveled);
         output.putBoolean("Returning", isReturning());
+        output.putBoolean("Dispensed", this.entityData.get(ID_DISPENSED));
         output.putInt("ThrownHand", this.thrownHand.ordinal());
         if (this.ownerUUID != null) {
             output.putString("OwnerUUID", this.ownerUUID.toString());
@@ -345,6 +389,7 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
         this.bounces = input.getIntOr("Bounces", 0);
         this.distanceTraveled = input.getDoubleOr("DistanceTraveled", 0.0);
         setReturning(input.getBooleanOr("Returning", false));
+        this.entityData.set(ID_DISPENSED, input.getBooleanOr("Dispensed", false));
         int handIdx = input.getIntOr("ThrownHand", 0);
         this.thrownHand = handIdx >= 0 && handIdx < InteractionHand.values().length ? InteractionHand.values()[handIdx] : InteractionHand.MAIN_HAND;
         input.getString("OwnerUUID").ifPresent(uuidStr -> {

@@ -17,6 +17,7 @@ public class ThrowingDiscBackport implements ModInitializer {
     public void onInitialize() {
         LOGGER.info("Initializing Throwing Disc Backport");
         ModItems.register();
+        ModItems.registerDispenserBehaviors();
         ModEntities.register();
 
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> ThrowingDiscEntity.recoverForPlayer(newPlayer));

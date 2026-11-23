@@ -13,6 +13,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
@@ -214,6 +215,8 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
 
         Vec3 end = start.add(motion);
 
+        if (!level().isClientSide()) harvestCrops(start, motion);
+
         BlockHitResult blockHit = level().clip(new ClipContext(start, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
         Vec3 rayLimit = blockHit.getType() != HitResult.Type.MISS ? blockHit.getLocation() : end;
 
@@ -272,6 +275,23 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
             }
         }
         discard();
+    }
+
+    private void harvestCrops(Vec3 start, Vec3 motion) {
+        var length = motion.length();
+        if (length < 1.0E-4D) return;
+
+        Vec3 direction = motion.scale(1.0D / length);
+        Set<BlockPos> broken = new HashSet<>();
+
+        for (var distance = 0.0D; distance <= length; distance += 0.3D) {
+            var pos = BlockPos.containing(start.add(direction.scale(distance)));
+
+            if (!broken.add(pos)) continue;
+
+            BlockState state = level().getBlockState(pos);
+            if (state.is(BlockTags.CROPS)) level().destroyBlock(pos, true, this);
+        }
     }
 
     @Override

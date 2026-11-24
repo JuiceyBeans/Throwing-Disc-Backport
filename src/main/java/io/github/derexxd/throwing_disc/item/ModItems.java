@@ -5,6 +5,7 @@ import io.github.derexxd.throwing_disc.entity.ThrowingDiscEntity;
 import net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Registry;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.dispenser.BlockSource;
 import net.minecraft.core.dispenser.DefaultDispenseItemBehavior;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -16,9 +17,11 @@ import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
+import net.minecraft.world.item.component.UseCooldown;
 import net.minecraft.world.level.block.DispenserBlock;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.Optional;
 import java.util.function.UnaryOperator;
 
 public class ModItems {
@@ -42,7 +45,8 @@ public class ModItems {
 
     private static Item register(String name, ThrowingDiscTier tier, UnaryOperator<Item.Properties> properties) {
         ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(ThrowingDiscBackport.MODID, name));
-        Item.Properties props = properties.apply(tier.applyProperties(new Item.Properties().setId(key)));
+        Item.Properties props = properties.apply(tier.applyProperties(new Item.Properties().setId(key)))
+                .component(DataComponents.USE_COOLDOWN, new UseCooldown(1.0F, Optional.of(Identifier.fromNamespaceAndPath(ThrowingDiscBackport.MODID, "throwing_disc"))));
         Item item = new ThrowingDiscItem(tier, props);
         return Registry.register(BuiltInRegistries.ITEM, key, item);
     }

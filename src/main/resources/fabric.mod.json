@@ -1,7 +1,7 @@
 {
 	"schemaVersion": 1,
 	"id": "throwing_disc_backport",
-	"version": "${version}",
+	"version": "${mod_version}",
 	"name": "Throwing Disc Backport",
 	"description": "Fork of Throwing Disc Backport with changes made for GIS",
 	"authors": [

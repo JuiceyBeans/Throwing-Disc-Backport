@@ -24,6 +24,7 @@ import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.entity.projectile.throwableitemprojectile.ThrowableItemProjectile;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
@@ -92,6 +93,10 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
             this.hitEntities.clear();
             this.noPhysics = true;
         }
+    }
+
+    public void resetDistanceTraveled() {
+        this.distanceTraveled = 0.0;
     }
 
     @Override
@@ -316,7 +321,27 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
         this.hitEntities.add(target.getUUID());
         Entity owner = getOwner();
         DamageSource damageSource = damageSources().thrown(this, owner);
-        target.hurt(damageSource, this.getTier().getDamage());
+        var itemStack = getItem();
+        var damage = this.getTier().getDamage();
+
+        if (level() instanceof ServerLevel serverLevel) {
+            damage = EnchantmentHelper.modifyDamage(serverLevel, itemStack, target, damageSource, damage);
+            target.hurt(damageSource, damage);
+
+            float knockback = EnchantmentHelper.modifyKnockback(serverLevel, itemStack, target, damageSource, 0.0F);
+            if (knockback > 0.0F && target instanceof LivingEntity livingTarget) {
+                livingTarget.knockback(knockback, target.getX() - this.getX(), target.getZ() - this.getZ(), damageSource, damage);
+            }
+
+            EnchantmentHelper.doPostAttackEffectsWithItemSource(serverLevel, target, damageSource, itemStack);
+
+            if (this.isOnFire()) {
+                target.igniteForSeconds(5.0F);
+            }
+        } else {
+            target.hurt(damageSource, damage);
+        }
+
         playSound(SoundEvents.TRIDENT_HIT, 1.0F, 1.0F);
         if (level() instanceof ServerLevel serverLevel) {
             serverLevel.sendParticles(ParticleTypes.CRIT, target.getX(), target.getY(0.5), target.getZ(), 12, 0.25, 0.25, 0.25, 0.15);
@@ -354,6 +379,7 @@ public class ThrowingDiscEntity extends ThrowableItemProjectile {
 
             this.bounces++;
             this.distanceTraveled = 0.0;
+            this.hitEntities.clear();
             if (this.bounces >= this.getTier().getMaxBounces()) {
                 if (this.entityData.get(ID_DISPENSED)) {
                     dropAsItem();
